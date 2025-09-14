@@ -27,8 +27,10 @@ def load_db():
 def save_db(data):
     with open(DB_FILE, "w", encoding='utf-8') as f: json.dump(data, f, indent=4, ensure_ascii=False)
 
+# --- دالة تهريب الحروف الخاصة (تم تحديثها) ---
 def escape_markdown(text: str) -> str:
     if not text: return ""
+    # تم إضافة النقطة للقائمة
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
 
@@ -72,19 +74,9 @@ def run_checks_endpoint(secret_key):
 
 # --- وظائف البوت ---
 def start(update: Update, context: CallbackContext) -> None:
-    welcome_text = """
-👋 Добро пожаловать в бот проверки подписки Starlink!  
-Бот был разработан 
-
-☠️Фараоном ☠️
-
-📡 *Что делает этот бот?* Он помогает проверить статус и дату продления подписки на ваш роутер.
-
-🛠 *Как использовать бот:* Нажмите «🔍 Поиск» и введите идентификатор роутера.  
-Пример: `KIT-12345`
-"""
-    keyboard = [[InlineKeyboardButton("🔍 Найти роутер", callback_data='start_search')], [InlineKeyboardButton("💬 Техническая поддержка", callback_data='start_support')]]
-    update.message.reply_text(welcome_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    welcome_text = "👋 Добро пожаловать! Чтобы проверить статус вашей подписки, нажмите кнопку поиска и отправьте ID роутера."
+    keyboard = [[InlineKeyboardButton("🔍 Найти роутер", callback_data='start_search')]]
+    update.message.reply_text(welcome_text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 def favorites(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id; db = load_db()
@@ -173,7 +165,9 @@ def cancel_conversation(update: Update, context: CallbackContext) -> int:
 
 # --- إعداد البوت والـ Webhook ---
 bot = Bot(TOKEN)
-dispatcher = Dispatcher(bot, None, workers=4, use_context=True)
+# مهم: Updater هنا مش بنستخدمه للـ polling، بس عشان يجهز الـ dispatcher
+updater = Updater(TOKEN, use_context=True)
+dispatcher = updater.dispatcher
 
 conv_handler = ConversationHandler(
     entry_points=[CommandHandler('manage_routers', manage_start), CallbackQueryHandler(start_search, pattern='^start_search$'), CallbackQueryHandler(start_support, pattern='^start_support$')],
@@ -193,9 +187,6 @@ dispatcher.add_handler(CallbackQueryHandler(favorite_button_handler, pattern='^f
 
 # --- الوظيفة الرئيسية ---
 if __name__ == '__main__':
-    print("Setting webhook...")
-    # تسجيل الـ Webhook مع تليجرام عند بدء التشغيل
     bot.set_webhook(url=f'{RENDER_URL}/{TOKEN}')
     print("Webhook is set. Starting Flask server...")
-    # تشغيل الويب سيرفر
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
